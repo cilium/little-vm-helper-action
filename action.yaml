@@ -1,0 +1,39 @@
+name: 'lvh-run'
+description: 'Runs LVH VMs for Cilium CI testing'
+inputs:
+  image:
+    description: 'LVH image name ("base", "kind", etc)'
+    required: true
+    default: 'kind'
+  cmd:
+    description: 'Commands to run in a VM'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Fetch LVH cli
+      uses: shrink/actions-docker-extract@v1
+      id: lvh
+      with:
+        image: 'quay.io/lvh-images/lvh:latest'
+        path: '/usr/bin/lvh'
+    - name: Install LVH cli
+      shell: bash
+      run: mv ${{ steps.lvh.outputs.destination }}/lvh .
+    - name: Fetch VM image
+      shell: bash
+      run: |
+        mkdir _images
+        docker run -v $(pwd)/_images:/mnt/images quay.io/lvh-images/root-images:latest cp /data/images/${{ inputs.image }}.qcow2.zst /mnt/images
+        cd _images
+        zstd -d kind.qcow2.zst && cd ..
+    - name: Start VM
+      shell: bash
+      run: |
+        ./lvh run --host-mount=$(pwd) --image _images/${{ inputs.image }}.qcow2 --daemonize -p 2222:22
+    - name: Run CMDs
+      shell: bash
+      run: |
+         ssh -p 2222 -o "StrictHostKeyChecking=no" root@localhost << EOF
+         ${{ inputs.cmd }}
+         EOF
