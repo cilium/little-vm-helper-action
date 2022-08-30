@@ -1,6 +1,9 @@
 name: 'lvh-run'
 description: 'Runs LVH VMs for Cilium CI testing'
 inputs:
+  test-name:
+    description: 'Unique test name'
+    required: true
   image:
     description: 'LVH image name ("base", "kind", etc)'
     required: true
@@ -8,24 +11,31 @@ inputs:
   cmd:
     description: 'Commands to run in a VM'
     required: true
+  ssh-port:
+    description: 'SSH port for VM on a host'
+    required: true
+    default: 2222
+  host-mount:
+    description: 'Host dir path to mount in /host dir of a VM'
+    required: true
 runs:
   using: "composite"
   steps:
-    - name: Find lvh cli
+    - name: Find LVH cli
       id: find-lvh-cli
       shell: bash
       run: |
         if [ -f "/bin/lvh" ]; then
           echo '::set-output name=skip::true'
         fi
-    - name: Fetch lvh cli
+    - name: Fetch LVH cli
       if: steps.find-lvh-cli.outputs.skip != 'true'
       uses: shrink/actions-docker-extract@v1
       id: fetch-lvh-cli
       with:
         image: 'quay.io/lvh-images/lvh:latest'
         path: '/usr/bin/lvh'
-    - name: Install lvh cli
+    - name: Install LVH cli
       if: steps.find-lvh-cli.outputs.skip != 'true'
       shell: bash
       run: mv ${{ steps.fetch-lvh-cli.outputs.destination }}/lvh /bin/lvh
@@ -33,7 +43,7 @@ runs:
     - uses: actions/cache@v3
       id: cache-lvh-image
       with:
-        path: /_images/${{ inputs.image}}.qcow2
+        path: /_images/${{ inputs.image}}.qcow2.zst
         key: lvh-image-${{ inputs.image }}
     - name: Fetch VM image
       if: steps.cache-lvh-image.outputs.cache-hit != 'true'
@@ -41,17 +51,19 @@ runs:
       run: |
         mkdir /_images
         docker run -v /_images:/mnt/images quay.io/lvh-images/root-images:latest cp /data/images/${{ inputs.image }}.qcow2.zst /mnt/images
+    - name: Prepare VM image
+      shell: bash
+      run: |
         cd /_images
-        zstd -d ${{ inputs.image }}.qcow2.zst && rm -f ${{ inputs.image}}.qcow2.zst
-        cd -
+        zstd -d ${{ inputs.image }}.qcow2.zst -o ${{ inputs.test-name }}.qcow2
 
     - name: Start VM
       shell: bash
       run: |
-        /bin/lvh run --host-mount=$(pwd) --image /_images/${{ inputs.image }}.qcow2 --daemonize -p 2222:22
-    - name: Run CMDs
+        /bin/lvh run --host-mount=${{ inputs.host-mount }} --image /_images/${{ inputs.test-name }}.qcow2 --daemonize -p ${{ inputs.ssh-port }}:22
+    - name: Run test cmd in VM
       shell: bash
       run: |
-         ssh -p 2222 -o "StrictHostKeyChecking=no" root@localhost << EOF
+         ssh -p ${{ inputs.ssh-port }} -o "StrictHostKeyChecking=no" root@localhost << EOF
          ${{ inputs.cmd }}
          EOF
