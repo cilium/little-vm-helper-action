@@ -8,6 +8,10 @@ inputs:
     description: 'LVH image name ("base", "kind", etc)'
     required: true
     default: 'kind'
+  lvh-version:
+    description: 'LVH cli version (Docker tag)'
+    required: true
+    default: 'latest'
   cmd:
     description: 'Commands to run in a VM'
     required: true
@@ -33,18 +37,13 @@ runs:
         if [ -f "/bin/lvh" ]; then
           echo '::set-output name=skip::true'
         fi
-    - name: Fetch LVH cli
-      if: ${{ inputs.provision == 'true' && steps.find-lvh-cli.outputs.skip != 'true' }}
-      uses: shrink/actions-docker-extract@v1
-      id: fetch-lvh-cli
-      with:
-        image: 'quay.io/lvh-images/lvh:latest'
-        path: '/usr/bin/lvh'
     - name: Install LVH cli
       if: ${{ inputs.provision == 'true' && steps.find-lvh-cli.outputs.skip != 'true' }}
       shell: bash
-      run: mv ${{ steps.fetch-lvh-cli.outputs.destination }}/lvh /bin/lvh
-
+      run: |
+        cid=$(docker create quay.io/lvh-images/lvh:${{ inputs.lvh-version }})
+        docker cp $cid:/usr/bin/lvh /bin/lvh
+        docker rm $cid
     - uses: actions/cache@v3
       if: ${{ inputs.provision == 'true' }}
       id: cache-lvh-image
