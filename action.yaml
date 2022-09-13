@@ -44,7 +44,7 @@ runs:
         cid=$(docker create quay.io/lvh-images/lvh:${{ inputs.lvh-version }})
         docker cp $cid:/usr/bin/lvh /bin/lvh
         docker rm $cid
-    - uses: actions/cache@v3
+    - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
       if: ${{ inputs.provision == 'true' }}
       id: cache-lvh-image
       with:
