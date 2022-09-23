@@ -8,6 +8,10 @@ inputs:
     description: 'LVH image name ("base", "kind", etc)'
     required: true
     default: 'kind'
+  image-version:
+    description: 'LVH image version'
+    required: true
+    default: '5.10'
   lvh-version:
     description: 'LVH cli version (Docker tag)'
     required: true
@@ -48,20 +52,20 @@ runs:
       if: ${{ inputs.provision == 'true' }}
       id: cache-lvh-image
       with:
-        path: /_images/${{ inputs.image}}.qcow2.zst
-        key: lvh-image-${{ inputs.image }}
+        path: /_images/${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst
+        key: lvh-image-${{ inputs.image }}_${{ inputs.image-version }}
     - name: Fetch VM image
       if: ${{ inputs.provision == 'true' && steps.cache-lvh-image.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         mkdir /_images
-        docker run -v /_images:/mnt/images quay.io/lvh-images/root-images:latest cp /data/images/${{ inputs.image }}.qcow2.zst /mnt/images
+        docker run -v /_images:/mnt/images quay.io/lvh-images/${{ inputs.image }}:${{ inputs.image-version }} cp /data/images/${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst /mnt/images
     - name: Prepare VM image
       if: ${{ inputs.provision == 'true'  }}
       shell: bash
       run: |
         cd /_images
-        zstd -d ${{ inputs.image }}.qcow2.zst -o ${{ inputs.test-name }}.qcow2
+        zstd -d ${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst -o ${{ inputs.test-name }}.qcow2
 
     - name: Start VM
       if: ${{ inputs.provision == 'true' }}
