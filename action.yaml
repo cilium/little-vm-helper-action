@@ -30,6 +30,10 @@ inputs:
     description: 'Provision VM (if set to false, only given test cmd is going to be run)'
     required: true
     default: 'true'
+  serial-port:
+    description: 'Serial port to access VM'
+    required: true
+    default: 0
 runs:
   using: "composite"
   steps:
@@ -71,7 +75,7 @@ runs:
       if: ${{ inputs.provision == 'true' }}
       shell: bash
       run: |
-        /bin/lvh run --host-mount=${{ inputs.host-mount }} --image /_images/${{ inputs.test-name }}.qcow2 --daemonize -p ${{ inputs.ssh-port }}:22
+        /bin/lvh run --host-mount=${{ inputs.host-mount }} --image /_images/${{ inputs.test-name }}.qcow2 --daemonize -p ${{ inputs.ssh-port }}:22 --serial-port ${{ inputs.serial-port }}
 
     - name: Run test cmd in VM
       shell: bash
