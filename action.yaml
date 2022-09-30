@@ -50,7 +50,7 @@ runs:
       shell: bash
       run: |
         cid=$(docker create quay.io/lvh-images/lvh:${{ inputs.lvh-version }})
-        docker cp $cid:/usr/bin/lvh /bin/lvh
+        sudo docker cp $cid:/usr/bin/lvh /bin/lvh
         docker rm $cid
     - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
       if: ${{ inputs.provision == 'true' }}
@@ -62,7 +62,7 @@ runs:
       if: ${{ inputs.provision == 'true' && steps.cache-lvh-image.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
-        mkdir /_images
+        sudo mkdir -p /_images && sudo chmod 777 /_images
         docker run -v /_images:/mnt/images quay.io/lvh-images/${{ inputs.image }}:${{ inputs.image-version }} cp /data/images/${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst /mnt/images
     - name: Prepare VM image
       if: ${{ inputs.provision == 'true'  }}
@@ -70,12 +70,13 @@ runs:
       run: |
         cd /_images
         zstd -d ${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst -o ${{ inputs.test-name }}.qcow2
+        chmod +rw ${{ inputs.test-name }}.qcow2
 
     - name: Start VM
       if: ${{ inputs.provision == 'true' }}
       shell: bash
       run: |
-        /bin/lvh run --host-mount=${{ inputs.host-mount }} --image /_images/${{ inputs.test-name }}.qcow2 --daemonize -p ${{ inputs.ssh-port }}:22 --serial-port ${{ inputs.serial-port }}
+        sudo /bin/lvh run --host-mount=${{ inputs.host-mount }} --image /_images/${{ inputs.test-name }}.qcow2 --daemonize -p ${{ inputs.ssh-port }}:22 --serial-port ${{ inputs.serial-port }}
 
     - name: Run test cmd in VM
       shell: bash
