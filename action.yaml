@@ -63,13 +63,13 @@ runs:
       shell: bash
       run: |
         sudo mkdir -p /_images && sudo chmod 777 /_images
-        docker run -v /_images:/mnt/images quay.io/lvh-images/${{ inputs.image }}:${{ inputs.image-version }} cp /data/images/${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst /mnt/images
+        docker run -v /_images:/mnt/images quay.io/lvh-images/${{ inputs.image }}:${{ inputs.image-version }} \'cp /data/images/*.qcow2.zst /mnt/images\'
     - name: Prepare VM image
       if: ${{ inputs.provision == 'true'  }}
       shell: bash
       run: |
         cd /_images
-        zstd -d ${{ inputs.image }}_${{ inputs.image-version }}.qcow2.zst -o ${{ inputs.test-name }}.qcow2
+        zstd -d *.qcow2.zst -o ${{ inputs.test-name }}.qcow2
         chmod +rw ${{ inputs.test-name }}.qcow2
 
     - name: Start VM
